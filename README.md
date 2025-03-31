@@ -3,4 +3,4 @@
  - SQLite/SQLite Sample Database
  - Python
 <br />
-![Graph](BookieGraph.jpg)
+!["Graph"](/BookieGraph.jpg)
