@@ -3,4 +3,6 @@
  - SQLite/SQLite Sample Database
  - Python
 <br />
-!["Graph"](./BookieGraph.jpg)
+<p align="center">
+    <img src="BookieGraph.jpg" width="500">
+</p>
