@@ -1,1 +1,2 @@
-sqlite3
+sqlite3 #already installed with latest version of python
+uv==0.6.11
