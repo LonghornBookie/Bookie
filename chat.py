@@ -1,10 +1,12 @@
 import os
-import requests
 import threading
+import pyttsx3
+import queue
 from dotenv import load_dotenv
 from openai import OpenAI
 import tkinter as tk
 import time
+import speech_recognition as sr
 
 load_dotenv()
 
@@ -12,6 +14,31 @@ client = OpenAI(
   base_url="https://openrouter.ai/api/v1",
   api_key=os.getenv("LLAMA_API_KEY")
 )
+
+tts_queue = queue.Queue()
+engine = pyttsx3.init()
+engine.setProperty('rate', 230)
+
+def process():
+    while True:
+        text = tts_queue.get()
+        if text is None:
+            break
+        engine.say(text)
+        engine.runAndWait()
+
+
+tts_thread = threading.Thread(target=process, daemon=True)
+tts_thread.start()
+
+def speak_and_display(text, output_widget):
+    words = text.split()
+    for word in words:
+        output_widget.insert(tk.END, word + ' ')
+        output_widget.see(tk.END)
+        output_widget.update()
+        time.sleep(0.1)
+    output_widget.insert(tk.END, '\n')
 
 # TODO: CREATE FUNCTIONS FOR AI AGENT
 # tools = [{
@@ -33,6 +60,7 @@ def stream_response(prompt, output_widget):
                             "You are Bookie, a funny and helpful AI agent who assists users with book-related question."
                             "Keep the extent of your humor to retain politeness and professionalism."
                             "If you are confused, then be honest!"
+                            "Keep your responses short."
                         )
                     },
                     {
@@ -43,15 +71,16 @@ def stream_response(prompt, output_widget):
                 #tools=tools,
                 stream=True,
             )
+
             response = ""
             for event in stream:
                 delta = event.choices[0].delta
                 content = getattr(delta, "content", "")
                 response += content
-                output_widget.insert(tk.END, content)
-                output_widget.see(tk.END)
-                output_widget.update()
-                time.sleep(0.05)
+
+            tts_queue.put(response.strip())
+            speak_and_display(response.strip(), output_widget)
+
         except Exception as e:
             output_widget.insert(tk.END, f"\n[FATAL] {e}\n")
             output_widget.see(tk.END)
@@ -66,6 +95,27 @@ def send_message():
     entry.delete(0, tk.END)
     display.insert(tk.END, "Bookie: ")
     stream_response(prompt, display)
+
+def voice_message():
+    recognizer = sr.Recognizer()
+    try:
+        with sr.Microphone() as source:
+            display.insert(tk.END, "\nListening...\n")
+            display.see(tk.END)
+            audio = recognizer.listen(source, timeout=5)
+        prompt = recognizer.recognize_google(audio)
+        display.insert(tk.END, f"\nYou: {prompt}\n")
+        entry.delete(0, tk.END)
+        display.insert(tk.END, "Bookie: ")
+        stream_response(prompt,display)
+
+
+    except sr.WaitTimeoutError:
+        display.insert(tk.END, "\n[ERROR] No speech detected.\n")
+    except sr.UnknownValueError:
+        display.instert(tk.END, "\n[ERROR] Unknown audio detected.")
+    except sr.RequestError as e:
+        display.inster(tk.END, "\n[ERROR] STT request failed: {e}\n")
 
 # Tkinter UI
 root = tk.Tk()
@@ -85,6 +135,9 @@ entry.bind("<Return>", lambda event: send_message())
 
 send_button = tk.Button(input_frame, text="Send", command=send_message)
 send_button.pack(side=tk.RIGHT, padx=5)
+
+voice_button = tk.Button(input_frame, text="Speak child", command=voice_message)
+voice_button.pack(side=tk.LEFT, padx=5)
 
 entry.focus()
 root.mainloop()
