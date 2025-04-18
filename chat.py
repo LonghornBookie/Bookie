@@ -7,6 +7,9 @@ from openai import OpenAI
 import tkinter as tk
 import time
 import speech_recognition as sr
+import update as db_connect
+
+# During speech, have Bookie reconfirm "Are you looking for [Book title] by [Author]?"
 
 load_dotenv()
 
