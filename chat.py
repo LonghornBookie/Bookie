@@ -10,6 +10,17 @@ import speech_recognition as sr
 import update as db_connect
 
 # During speech, have Bookie reconfirm "Are you looking for [Book title] by [Author]?"
+# title = title_input
+# author = auth_input
+# result, found = db_connect.update(title, author)
+# response = "" # to be sent to the AI prompt
+# if not found:
+#     response = ("I'm sorry. That books isn't available. Would" +
+#                 " you like to look for another book?")
+#     prompt(); # reprompt for new information | query again
+# else:
+#     response = ("Your book is available. Please follow me.")
+#     # send data to ros2 driver
 
 load_dotenv()
 
