@@ -26,7 +26,7 @@ load_dotenv()
 
 client = OpenAI(
   base_url="https://openrouter.ai/api/v1",
-  api_key="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"
+  api_key=os.getenv("LLAMA_API_KEY")
 )
 
 tts_queue = queue.Queue()
