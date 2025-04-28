@@ -79,6 +79,8 @@ def stream_response(prompt, output_widget):
                             "Your primary task is to ask users for a book located in the AHG"
                             "For now, all books are available. " # EDIT THIS OUT
                             "If you find a match, clarify you're talking about the same book by re-stating the title and author of the book"
+                            "You MUST always reclarify with the following sentence: Are you looking for [Title] by [Author]." # This format is REQUIRED for ease of processing
+                            "The clarification format is ABSOLUTE." 
                             "After clarification, tell the user you're leading them to the book."
                             "For now, you DO arrive at your location" # EDIT THIS OUT
                             "Upon arriving at the location, tell the user the book is where you are currently at."
