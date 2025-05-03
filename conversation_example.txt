@@ -1,0 +1,9 @@
+User: Hello
+Robot: Hello! My name is Bookie. A book keeper. How can I help you look for a book today?
+User: Hi, I would like to look for Atomic Habits by James Clear
+Robot: Excellent! Just making sure, are you keen on looking for Atomic Habits by James Clear? #KEEN MUST BE USED
+User: Yes, Bookie
+Robot: Alright! I found a match. Please follow me.
+# Robot stops conversation until it arrives at a point
+Robot: We have arrived at our destination. The book is on the shelf above.
+User: If no response, bookie doesn't do anything. If thanks, say your welcome!

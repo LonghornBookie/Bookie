@@ -8,15 +8,15 @@ import tkinter as tk
 import time
 import speech_recognition as sr
 import update as db_connect
+import json
 
 # During speech, have Bookie reconfirm "Are you looking for [Book title] by [Author]?"
 # title = title_input
 # author = auth_input
-# result, found = db_connect.update(title, author)
+# 
 # response = "" # to be sent to the AI prompt
 # if not found:
-#     response = ("I'm sorry. That books isn't available. Would" +
-#                 " you like to look for another book?")
+#     
 #     prompt(); # reprompt for new information | query again
 # else:
 #     response = ("Your book is available. Please follow me.")
@@ -24,9 +24,13 @@ import update as db_connect
 
 load_dotenv()
 
+override = "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"
+api_key = "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"#os.getenv("LLAMA_API_KEY")
+api_key = override
+
 client = OpenAI(
   base_url="https://openrouter.ai/api/v1",
-  api_key=os.getenv("LLAMA_API_KEY")
+  api_key=api_key
 )
 
 tts_queue = queue.Queue()
@@ -54,57 +58,107 @@ def speak_and_display(text, output_widget):
         time.sleep(0.1)
     output_widget.insert(tk.END, '\n')
 
-# TODO: CREATE FUNCTIONS FOR AI AGENT
-# tools = [{
-#     "type": "function",
-#     "name": "#",
-#     "description": "#",
-#     "arguments": "#"
-# }]
+messages_array = [
+    {
+        "role": "system",
+        "content": (
+            "You are Bookie, a funny and helpful AI asistant who will asks users for the title and author of books. "
+            # "Keep the extent of your humor to retain politeness and professionalism. "
+            "If you are confused, then be honest! "
+            "Keep your responses short. This is important"
+            # "You manage the books located at the AHG. "
+            "Your primary task is to ask users for a book located in the AHG. DO NOT DESCRIBE THE ACRONYM."
+            "Only ask a question on this one book"
+            "After the user gives you a book author and name: Ask the user this exact question: would you like me to search our database for [Title] written by [Author]?"
+            # # "For now, all books are available. " # EDIT THIS OUT
+            # "Clarify you're talking about the same book by re-stating the title and author of the book. "
+            # "This response must always include 'Are you keen on looking for [Title] written by [Author]. "
+            # "Fill in title and author respectively. "
+            # "This format MUST always be preserved exactly with no adjustments."
+            # "Ask this once per book. "
+            # "This cannot during a greeting exchange. "
+            # "Never start a conversation by asking if they are looking for a specific book. "
+            # "If you don't find a match, tell the user you couldn't find the book. Ask the user if they're looking for anything else."
+            # "You MUST always reclarify ONLY IF THERE IS A MATCH with the following sentence only once per book: Are you looking for [Title] by [Author]." # This format is REQUIRED for ease of processing
+            # "The clarification format is ABSOLUTE." 
+            # "After clarification, tell the user you're leading them to the book. This is conditional on IF you find a match."
+            # "If you arrive at the location, tell the user the book is where you are currently at."
+            # "If the user doesn't want to find any more books, say goodbye."
+        )
+    },
+]
+ 
+def check_book_database(response):
+    if "would you like me to search our database for" in response.lower():
+        isolator = response.lower().split("would you like me to search our database for")[1]
+        title = isolator.split("written by")[0].strip().strip('"')
+        author = isolator.split("written by")[1].strip()
+        # shouldn't error if this AI actually follows my commands
+        return title, author
+    return None, None
+
+def prompter(prompt):
+    
+    messages_array.append({"role": "user", "content": prompt})
+    response = client.chat.completions.create(
+        model="meta-llama/llama-3.2-3b-instruct:free",
+        messages=messages_array
+    )
+    # FOR DIAGNOSING NO OUTPUT ISSUES
+    #print("RESPONSE:", response)
+    #print("CHOICES:", getattr(response, "choices", None))
+    
+    # if not hasattr(response, "choices") or not response.choices:
+    #     print("[ERROR] No choices returned from the model.")
+    #     return None
+
+    content = response.choices[0].message.content
+    # if content is None:
+    #     print("[ERROR] content is None")
+    #     return None
+
+    messages_array.append({
+        "role": "assistant", 
+        "content": content
+    })
+    return content
 
 def stream_response(prompt, output_widget):
     def run():
         try:
-            stream = client.chat.completions.create(
-                model="meta-llama/llama-3.2-3b-instruct:free",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are Bookie, a funny and helpful AI agent who assists users with book-related questions."
-                            "Keep the extent of your humor to retain politeness and professionalism."
-                            "If you are confused, then be honest!"
-                            "Keep your responses short."
-                            "You manage the books located at the AHG."
-                            "Your primary task is to ask users for a book located in the AHG"
-                            "For now, all books are available. " # EDIT THIS OUT
-                            "If you find a match, clarify you're talking about the same book by re-stating the title and author of the book"
-                            "You MUST always reclarify with the following sentence: Are you looking for [Title] by [Author]." # This format is REQUIRED for ease of processing
-                            "The clarification format is ABSOLUTE." 
-                            "After clarification, tell the user you're leading them to the book."
-                            "For now, you DO arrive at your location" # EDIT THIS OUT
-                            "Upon arriving at the location, tell the user the book is where you are currently at."
-                            "If you don't find a match, tell the user you couldn't find the book. Ask the user if they're looking for anything else."
-                            "If the user doesn't want to find any more books, say goodbye."
-                        )
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                #tools=tools,
-                stream=True,
-            )
+            if not messages_array:
+                messages_array.append({
+                    "role": "assistant", 
+                    "content": "Hello! Are you looking for a book today?"
+                })
+                speak_and_display("Hello! Are you looking for a book today?", output_widget)
 
-            response = ""
-            for event in stream:
-                delta = event.choices[0].delta
-                content = getattr(delta, "content", "")
-                response += content
+                return  # don't start prompting since missing key content
 
-            tts_queue.put(response.strip())
-            speak_and_display(response.strip(), output_widget)
+            print("PROMPT: " + prompt)
+            response = prompter(prompt)
+            print("RESPONSE: " + response)
+            tts_queue.put(response)
+            speak_and_display(response, output_widget)
+            
+            title, author = check_book_database(response)
+            print(title, author)
+            if title and author:
+                if (author[-1] == "?"):
+                    author = author[:-1]
+                print("IM FINDING IT" + title + " : " + author)
+                result, found = db_connect.update(title.lower(), author.lower())
+                something = str(found)
+                print("BOOK LOCATED: " + something)
+                if found:
+                    followup_msg = "Tell the user: Alright! I found a match. I will now take you to the book"
+                    # insert connection to c here
+                else:
+                    followup_msg = "Tell the user: Sorry, we don't have that right now! Would you like to find another book?"
+                messages_array.append({
+                    "role": "user", 
+                    "content": followup_msg
+                })
 
         except Exception as e:
             output_widget.insert(tk.END, f"\n[FATAL] {e}\n")
