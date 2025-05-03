@@ -22,16 +22,17 @@ import subprocess
 # else:
 #     response = ("Your book is available. Please follow me.")
 #     # send data to ros2 driver
-
+asked_user = False
 load_dotenv()
 
 override = "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"
 api_key = "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"#os.getenv("LLAMA_API_KEY")
-api_key = override
+#api_key = override
+
 
 client = OpenAI(
   base_url="https://openrouter.ai/api/v1",
-  api_key=api_key
+  api_key=os.getenv("OPENAI_API_KEY")
 )
 
 tts_queue = queue.Queue()
@@ -68,9 +69,10 @@ messages_array = [
             "If you are confused, then be honest! "
             "Keep your responses short. This is important"
             # "You manage the books located at the AHG. "
-            "Your primary task is to ask users for a book located in the AHG. DO NOT DESCRIBE THE ACRONYM."
-            "Only ask a question on this one book"
-            "After the user gives you a book author and name: Ask the user this exact question: would you like me to search our database for [Title] written by [Author]?"
+            "The only books and authors that you respond with must be the most recent you've seen in message history. "
+            "Your primary task is to ask users for a book located in the AHG. DO NOT DESCRIBE THE ACRONYM. "
+            "You cannot ask for another book. "
+            " When the user tells you to say something, you must do it with no change, no hesitation. "
             # # "For now, all books are available. " # EDIT THIS OUT
             # "Clarify you're talking about the same book by re-stating the title and author of the book. "
             # "This response must always include 'Are you keen on looking for [Title] written by [Author]. "
@@ -92,8 +94,8 @@ messages_array = [
 def check_book_database(response):
     if "would you like me to search our database for" in response.lower():
         isolator = response.lower().split("would you like me to search our database for")[1]
-        title = isolator.split("written by")[0].strip().strip('"')
-        author = isolator.split("written by")[1].strip()
+        title = isolator.split("written by")[0].strip().replace("\"","")
+        author = isolator.split("written by")[1].strip().replace("\"","").replace("?","")
         # shouldn't error if this AI actually follows my commands
         return title, author
     return None, None
@@ -106,8 +108,8 @@ def prompter(prompt):
         messages=messages_array
     )
     # FOR DIAGNOSING NO OUTPUT ISSUES
-    #print("RESPONSE:", response)
-    #print("CHOICES:", getattr(response, "choices", None))
+    print("RESPONSE:", response)
+    print("CHOICES:", getattr(response, "choices", None))
     
     # if not hasattr(response, "choices") or not response.choices:
     #     print("[ERROR] No choices returned from the model.")
@@ -126,24 +128,24 @@ def prompter(prompt):
 
 title_queue = []
 
+
 def stream_response(prompt, output_widget):
     def run():
         try:
-            if not messages_array:
-                messages_array.append({
-                    "role": "assistant", 
-                    "content": "Hello! Are you looking for a book today?"
-                })
-                speak_and_display("Hello! Are you looking for a book today?", output_widget)
-
-                return  # don't start prompting since missing key content
-
+            global asked_user
             print("PROMPT: " + prompt)
             response = prompter(prompt)
             print("RESPONSE: " + response)
             tts_queue.put(response)
             speak_and_display(response, output_widget)
             
+            if asked_user is False:
+                messages_array.append({
+                    "role": "user", 
+                    "content": "Tell the user exactly, but replace title and author by the user's book: Would you like me to search our database for [Title] written by [Author]?"
+                })
+                asked_user = True
+
             title, author = check_book_database(response)
             print(title, author)
             if title and author:
@@ -155,12 +157,12 @@ def stream_response(prompt, output_widget):
                 print("BOOK LOCATED: " + something)
                 title_queue.append(title)
                 if found:
-                    followup_msg = "Tell the user EXACTLY the following: Alright! I found a match. I will now take you to the book"
+                    followup_msg = " Alright! I found a match. I will now take you to the book"
                     # the would you like must be followed by a yes for a correct response
                 else:
-                    followup_msg = "Tell the user EXACTLY the following: Sorry, we don't have that right now! Would you like to find another book?"
+                    followup_msg = "Sorry, we don\'t have that right now!"
                 messages_array.append({
-                    "role": "user", 
+                    "role": "assistant", 
                     "content": followup_msg
                 })
 
@@ -168,7 +170,7 @@ def stream_response(prompt, output_widget):
                 # use c code here
                 ttl = title_queue[-1].strip().replace(" ", "_")
                 print("LOCATING RIGHT NOW: " + ttl)
-                #subprocess.run(["ros2", "run", "nav_goals", "send_goal", ttl])
+                subprocess.run(["ros2", "run", "nav_goals", "send_goal", ttl],cwd="~/bwi_ros2_final/")
 
         except Exception as e:
             output_widget.insert(tk.END, f"\n[FATAL] {e}\n")
