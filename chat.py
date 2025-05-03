@@ -9,6 +9,7 @@ import time
 import speech_recognition as sr
 import update as db_connect
 import json
+import subprocess
 
 # During speech, have Bookie reconfirm "Are you looking for [Book title] by [Author]?"
 # title = title_input
@@ -123,6 +124,8 @@ def prompter(prompt):
     })
     return content
 
+title_queue = []
+
 def stream_response(prompt, output_widget):
     def run():
         try:
@@ -150,11 +153,12 @@ def stream_response(prompt, output_widget):
                 result, found = db_connect.update(title.lower(), author.lower())
                 something = str(found)
                 print("BOOK LOCATED: " + something)
+                title_queue.append(title)
                 if found:
-                    followup_msg = "Tell the user: Alright! I found a match. I will now take you to the book"
+                    followup_msg = "Tell the user EXACTLY the following: Alright! I found a match. I will now take you to the book"
                     # the would you like must be followed by a yes for a correct response
                 else:
-                    followup_msg = "Tell the user: Sorry, we don't have that right now! Would you like to find another book?"
+                    followup_msg = "Tell the user EXACTLY the following: Sorry, we don't have that right now! Would you like to find another book?"
                 messages_array.append({
                     "role": "user", 
                     "content": followup_msg
@@ -162,6 +166,9 @@ def stream_response(prompt, output_widget):
 
             if "i found a match" in response.lower():
                 # use c code here
+                ttl = title_queue[-1].strip().replace(" ", "_")
+                print("LOCATING RIGHT NOW: " + ttl)
+                #subprocess.run(["ros2", "run", "nav_goals", "send_goal", ttl])
 
         except Exception as e:
             output_widget.insert(tk.END, f"\n[FATAL] {e}\n")
