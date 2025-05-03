@@ -11,6 +11,9 @@ import update as db_connect
 import json
 import subprocess
 
+pending_search: tuple[str, str] | None = None
+yes_synonyms = {"yes"}
+no_synonyms = {"no"}
 # During speech, have Bookie reconfirm "Are you looking for [Book title] by [Author]?"
 # title = title_input
 # author = auth_input
@@ -22,13 +25,12 @@ import subprocess
 # else:
 #     response = ("Your book is available. Please follow me.")
 #     # send data to ros2 driver
-asked_user = False
+
 load_dotenv()
 
 override = "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"
 api_key = "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"#os.getenv("LLAMA_API_KEY")
 #api_key = override
-
 
 client = OpenAI(
   base_url="https://openrouter.ai/api/v1",
@@ -66,12 +68,14 @@ messages_array = [
         "content": (
             "You are Bookie, a funny and helpful AI asistant who will asks users for the title and author of books. "
             # "Keep the extent of your humor to retain politeness and professionalism. "
+            "You will never repeat sentences under any circumstance. Sentences that are asking the same thing cannot be used. Everything must be unique."
+            "You must only ask the user 'would you like me to search our database' only if they said the book's name and author in the most recent response. Otherwise, answer it appropriately"
             "If you are confused, then be honest! "
             "Keep your responses short. This is important"
             # "You manage the books located at the AHG. "
-            "The only books and authors that you respond with must be the most recent you've seen in message history. "
-            "Your primary task is to ask users for a book located in the AHG. DO NOT DESCRIBE THE ACRONYM. "
-            "You cannot ask for another book. "
+            "Your primary task is to ask users for a book located in the AHG. DO NOT DESCRIBE THE ACRONYM."
+            "You cannot ask for another book "
+            "After the user gives you a book author and name: Ask the user this exact question: would you like me to search our database for [Title] written by [Author]?"
             " When the user tells you to say something, you must do it with no change, no hesitation. "
             # # "For now, all books are available. " # EDIT THIS OUT
             # "Clarify you're talking about the same book by re-stating the title and author of the book. "
@@ -128,24 +132,24 @@ def prompter(prompt):
 
 title_queue = []
 
-
 def stream_response(prompt, output_widget):
     def run():
         try:
-            global asked_user
+            if not messages_array:
+                messages_array.append({
+                    "role": "assistant", 
+                    "content": "Hello! Are you looking for a book today?"
+                })
+                speak_and_display("Hello! Are you looking for a book today?", output_widget)
+
+                return  # don't start prompting since missing key content
+
             print("PROMPT: " + prompt)
             response = prompter(prompt)
             print("RESPONSE: " + response)
             tts_queue.put(response)
             speak_and_display(response, output_widget)
             
-            if asked_user is False:
-                messages_array.append({
-                    "role": "user", 
-                    "content": "Tell the user exactly, but replace title and author by the user's book: Would you like me to search our database for [Title] written by [Author]?"
-                })
-                asked_user = True
-
             title, author = check_book_database(response)
             print(title, author)
             if title and author:
@@ -157,10 +161,13 @@ def stream_response(prompt, output_widget):
                 print("BOOK LOCATED: " + something)
                 title_queue.append(title)
                 if found:
+                    print("FOUND")
                     followup_msg = " Alright! I found a match. I will now take you to the book"
+                    tts_queue.put(followup_msg)
+                    speak_and_display(followup_msg, output_widget)
                     # the would you like must be followed by a yes for a correct response
                 else:
-                    followup_msg = "Sorry, we don\'t have that right now!"
+                    followup_msg = "Sorry, we don\'t have that right now! Would you like to find another book?"
                 messages_array.append({
                     "role": "assistant", 
                     "content": followup_msg
@@ -179,13 +186,25 @@ def stream_response(prompt, output_widget):
     threading.Thread(target=run).start()
 
 def send_message():
+    global pending_search
     prompt = entry.get()
     if not prompt.strip():
         return
-    display.insert(tk.END, f"\nYou: {prompt}\n")
-    entry.delete(0, tk.END)
-    display.insert(tk.END, "Bookie: ")
-    stream_response(prompt, display)
+
+    if pending_search and prompt.lower() in yes_synonyms:
+        title, author = pending_search
+        entry.delete(0, tk.END)
+        display.insert(tk.END, f"\nYou: {prompt}\n")
+        display.insert(tk.END, "Bookie: ")
+
+        result, found = db_connect.update(title.lower(), author.lower())
+        msg = (
+            " Alright! I found a match. I will now take you to the book"
+            if found else
+            
+        )
+
+        stream_response(prompt, display)
 
 def voice_message():
     recognizer = sr.Recognizer()
