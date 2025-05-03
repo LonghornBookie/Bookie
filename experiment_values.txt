@@ -1,0 +1,16 @@
+Because there is no robot, within our means, that's able to locate library books without an AI interface. There is no available control group.
+
+Survey:
+Do you know how to use LC Call Numbers to locate library books (e.g.)
+
+Do you know how to use LC Call Numbers to locate library books (e.g.)
+
+How likely are you to ask a robot for help locating library books? This robot will require particular way of speaking and input.
+
+How likely are you to ask a robot with an AI interface for help locating library books? This robot's dialogue can adapt to your responses.
+
+Of the 2 robots, which robot are you more likely to use?
+
+Bookie test values:
+- Location accuracy (test a few times and check distance)
+- AI interface correct output rate. (is the output from the AI interface correct)

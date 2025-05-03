@@ -152,13 +152,16 @@ def stream_response(prompt, output_widget):
                 print("BOOK LOCATED: " + something)
                 if found:
                     followup_msg = "Tell the user: Alright! I found a match. I will now take you to the book"
-                    # insert connection to c here
+                    # the would you like must be followed by a yes for a correct response
                 else:
                     followup_msg = "Tell the user: Sorry, we don't have that right now! Would you like to find another book?"
                 messages_array.append({
                     "role": "user", 
                     "content": followup_msg
                 })
+
+            if "i found a match" in response.lower():
+                # use c code here
 
         except Exception as e:
             output_widget.insert(tk.END, f"\n[FATAL] {e}\n")
@@ -215,7 +218,7 @@ entry.bind("<Return>", lambda event: send_message())
 send_button = tk.Button(input_frame, text="Send", command=send_message)
 send_button.pack(side=tk.RIGHT, padx=5)
 
-voice_button = tk.Button(input_frame, text="Speak child", command=voice_message)
+voice_button = tk.Button(input_frame, text="User Speak", command=voice_message)
 voice_button.pack(side=tk.LEFT, padx=5)
 
 entry.focus()
