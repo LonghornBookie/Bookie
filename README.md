@@ -1,8 +1,6 @@
 # Bookie
 ### Required Utilities
- - SQLite/SQLite Sample Database
- - Python
- - OpenAI API Free Tier
+ - requirements.txt
 
 ### About
  - Books must utilize Library of Congress (LC) classification system.
