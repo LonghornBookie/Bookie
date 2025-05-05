@@ -25,15 +25,16 @@ import subprocess
 
 load_dotenv()
 
-override = "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"
-api_key = "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"#os.getenv("LLAMA_API_KEY")
+override = "#"
+api_key = "#"#os.getenv("LLAMA_API_KEY")
 #api_key = override
 
 
 client = OpenAI(
   base_url="https://openrouter.ai/api/v1",
-  api_key="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"
-)
+  api_key="api_key"
+)'
+'
 
 tts_queue = queue.Queue()
 engine = pyttsx3.init()
