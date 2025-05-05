@@ -1,5 +1,5 @@
 # Bookie
-### Note:
+### Note
 send_goal.cpp is moved to src/ and packaged in ROS2 workspace/directory
 
 ### Required Utilities
